@@ -270,3 +270,15 @@ USING (bucket_id = 'slips' AND (storage.foldername(name))[1] = auth.uid()::text)
 CREATE POLICY "Users can delete own slips"
 ON storage.objects FOR DELETE TO authenticated
 USING (bucket_id = 'slips' AND (storage.foldername(name))[1] = auth.uid()::text);
+
+
+-- ============================================================================
+-- 7. TABLE & FUNCTION PERMISSIONS FOR SUPABASE ROLES (authenticated / anon / service_role)
+-- ============================================================================
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON ROUTINES TO anon, authenticated, service_role;
