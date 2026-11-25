@@ -23,26 +23,43 @@ const TransactionInputSchema = z.object({
 
 export type CreateTransactionInput = z.infer<typeof TransactionInputSchema>;
 
-export async function createTransactionAction(input: CreateTransactionInput) {
-  const parsed = TransactionInputSchema.parse({
-    ...input,
-    transactionDate: input.transactionDate || getBangkokDateString(),
-  });
+export async function createTransactionAction(
+  input: CreateTransactionInput
+): Promise<{ success?: boolean; error?: string }> {
+  try {
+    const parsed = TransactionInputSchema.parse({
+      ...input,
+      transactionDate: input.transactionDate || getBangkokDateString(),
+    });
 
-  const data = await executeCreateTransactionAtomic(parsed);
+    await executeCreateTransactionAtomic(parsed);
 
-  revalidatePath('/');
-  revalidatePath('/transactions');
-  revalidatePath('/accounts');
-  revalidatePath('/budgets');
-  return data;
+    revalidatePath('/');
+    revalidatePath('/transactions');
+    revalidatePath('/accounts');
+    revalidatePath('/budgets');
+    return { success: true };
+  } catch (err: any) {
+    return {
+      error: err?.message || 'เกิดข้อผิดพลาดในการบันทึกรายการ',
+    };
+  }
 }
 
-export async function deleteTransactionAction(transactionId: string) {
-  await executeDeleteTransactionAtomic(transactionId);
+export async function deleteTransactionAction(
+  transactionId: string
+): Promise<{ success?: boolean; error?: string }> {
+  try {
+    await executeDeleteTransactionAtomic(transactionId);
 
-  revalidatePath('/');
-  revalidatePath('/transactions');
-  revalidatePath('/accounts');
-  revalidatePath('/budgets');
+    revalidatePath('/');
+    revalidatePath('/transactions');
+    revalidatePath('/accounts');
+    revalidatePath('/budgets');
+    return { success: true };
+  } catch (err: any) {
+    return {
+      error: err?.message || 'ไม่สามารถลบรายการได้',
+    };
+  }
 }

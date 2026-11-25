@@ -331,6 +331,69 @@ export async function executeCreateTransactionAtomic(params: {
       p_idempotency_key: params.idempotencyKey,
       p_source: params.source,
     });
+
+    // Fallback: หากผู้ใช้ยังไม่ได้สร้างฟังก์ชัน RPC create_transaction_atomic ใน Supabase SQL Editor
+    // ให้ทำการ Insert รายการและอัปเดต current_balance ผ่านตารางโดยตรง
+    if (error && (error.code === 'PGRST202' || error.message.includes('create_transaction_atomic'))) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('กรุณาเข้าสู่ระบบก่อนทำรายการ');
+
+      const { data: insertedTx, error: insertErr } = await supabase
+        .from('transactions')
+        .insert({
+          user_id: user.id,
+          account_id: params.accountId,
+          to_account_id: params.type === 'TRANSFER' ? params.toAccountId : null,
+          category_id: params.type === 'TRANSFER' ? null : params.categoryId,
+          type: params.type,
+          amount: amountFixed,
+          transaction_date: params.transactionDate,
+          note: params.note ?? null,
+          slip_storage_path: params.slipStoragePath ?? null,
+          idempotency_key: params.idempotencyKey,
+          source: params.source,
+        })
+        .select('*')
+        .single();
+
+      if (insertErr) throw new Error(insertErr.message);
+
+      const { data: srcAcc } = await supabase
+        .from('accounts')
+        .select('current_balance')
+        .eq('id', params.accountId)
+        .single();
+
+      if (srcAcc) {
+        const currentBal = Number(srcAcc.current_balance);
+        const nextBal =
+          params.type === 'INCOME'
+            ? Number((currentBal + amountFixed).toFixed(2))
+            : Number((currentBal - amountFixed).toFixed(2));
+        await supabase
+          .from('accounts')
+          .update({ current_balance: nextBal })
+          .eq('id', params.accountId);
+      }
+
+      if (params.type === 'TRANSFER' && params.toAccountId) {
+        const { data: dstAcc } = await supabase
+          .from('accounts')
+          .select('current_balance')
+          .eq('id', params.toAccountId)
+          .single();
+        if (dstAcc) {
+          const nextDstBal = Number((Number(dstAcc.current_balance) + amountFixed).toFixed(2));
+          await supabase
+            .from('accounts')
+            .update({ current_balance: nextDstBal })
+            .eq('id', params.toAccountId);
+        }
+      }
+
+      return insertedTx;
+    }
+
     if (error) throw new Error(error.message);
     return data;
   }
@@ -390,6 +453,54 @@ export async function executeDeleteTransactionAtomic(transactionId: string) {
     const { error } = await supabase.rpc('delete_transaction_atomic', {
       p_transaction_id: transactionId,
     });
+
+    if (error && (error.code === 'PGRST202' || error.message.includes('delete_transaction_atomic'))) {
+      const { data: oldTx } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('id', transactionId)
+        .single();
+
+      if (oldTx) {
+        const amt = Number(oldTx.amount);
+        const { data: srcAcc } = await supabase
+          .from('accounts')
+          .select('current_balance')
+          .eq('id', oldTx.account_id)
+          .single();
+
+        if (srcAcc) {
+          const cur = Number(srcAcc.current_balance);
+          const reverted =
+            oldTx.type === 'INCOME'
+              ? Number((cur - amt).toFixed(2))
+              : Number((cur + amt).toFixed(2));
+          await supabase
+            .from('accounts')
+            .update({ current_balance: reverted })
+            .eq('id', oldTx.account_id);
+        }
+
+        if (oldTx.type === 'TRANSFER' && oldTx.to_account_id) {
+          const { data: dstAcc } = await supabase
+            .from('accounts')
+            .select('current_balance')
+            .eq('id', oldTx.to_account_id)
+            .single();
+          if (dstAcc) {
+            const revertedDst = Number((Number(dstAcc.current_balance) - amt).toFixed(2));
+            await supabase
+              .from('accounts')
+              .update({ current_balance: revertedDst })
+              .eq('id', oldTx.to_account_id);
+          }
+        }
+
+        await supabase.from('transactions').delete().eq('id', transactionId);
+        return true;
+      }
+    }
+
     if (error) throw new Error(error.message);
     return true;
   }

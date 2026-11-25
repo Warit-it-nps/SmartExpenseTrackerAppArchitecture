@@ -61,10 +61,9 @@ export function TransactionForm({
   );
   const [note, setNote] = useState<string>(initialValues?.note ?? '');
   const [error, setError] = useState<string | null>(null);
-  const [idempotencyKey, setIdempotencyKey] = useState<string>(() =>
-    typeof crypto !== 'undefined' && crypto.randomUUID
-      ? crypto.randomUUID()
-      : `idemp-${Date.now()}-${Math.random()}`
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [idempotencyKey, setIdempotencyKey] = useState<string>(
+    () => `idemp-${Date.now()}`
   );
   const [isPending, startTransition] = useTransition();
 
@@ -74,32 +73,35 @@ export function TransactionForm({
     e.preventDefault();
     if (isPending) return;
     setError(null);
+    setSuccessMsg(null);
 
     startTransition(async () => {
-      try {
-        await createTransactionAction({
-          type,
-          amount: parseFloat(amount),
-          accountId,
-          toAccountId: type === 'TRANSFER' ? toAccountId : null,
-          categoryId:
-            type === 'TRANSFER'
-              ? null
-              : categoryId || filteredCategories[0]?.id || null,
-          transactionDate,
-          note,
-          slipStoragePath: initialValues?.slipStoragePath ?? null,
-          idempotencyKey,
-          source: initialValues?.source ?? 'WEB',
-        });
+      const res = await createTransactionAction({
+        type,
+        amount: parseFloat(amount),
+        accountId: accountId || accounts[0]?.id || '',
+        toAccountId: type === 'TRANSFER' ? toAccountId : null,
+        categoryId:
+          type === 'TRANSFER'
+            ? null
+            : categoryId || filteredCategories[0]?.id || null,
+        transactionDate,
+        note,
+        slipStoragePath: initialValues?.slipStoragePath ?? null,
+        idempotencyKey,
+        source: initialValues?.source ?? 'WEB',
+      });
 
-        setAmount('');
-        setNote('');
-        setIdempotencyKey(`idemp-${Date.now()}-${Math.random()}`);
-        onSuccess?.();
-      } catch (err: any) {
-        setError(err.message || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+      if (res?.error) {
+        setError(res.error);
+        return;
       }
+
+      setAmount('');
+      setNote('');
+      setSuccessMsg('บันทึกรายการสำเร็จ!');
+      setIdempotencyKey(`idemp-${Date.now()}-${Math.random()}`);
+      onSuccess?.();
     });
   };
 
@@ -129,6 +131,12 @@ export function TransactionForm({
       {error && (
         <div className="p-3 rounded-lg bg-red-50 text-red-600 text-xs border border-red-200">
           {error}
+        </div>
+      )}
+
+      {successMsg && (
+        <div className="p-3 rounded-lg bg-emerald-50 text-emerald-700 text-xs border border-emerald-200">
+          {successMsg}
         </div>
       )}
 
