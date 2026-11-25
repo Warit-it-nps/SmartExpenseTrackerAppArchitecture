@@ -1,13 +1,13 @@
 import { upsertBudgetAction } from '@/actions/budget.actions';
 import { formatTHB, getBangkokMonthYear } from '@/lib/utils/timezone';
-import { readLocalDB } from '@/lib/store';
+import { loadAppState } from '@/lib/store';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
 export default async function BudgetsPage() {
   const currentMonth = getBangkokMonthYear();
-  const db = readLocalDB();
+  const db = await loadAppState();
 
   const categories = db.categories.filter((c) => c.type === 'EXPENSE');
   const budgets = db.budgets.filter((b) => b.month_year === currentMonth);

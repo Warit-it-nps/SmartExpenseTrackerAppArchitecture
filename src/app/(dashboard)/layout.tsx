@@ -1,6 +1,8 @@
+import { redirect } from 'next/navigation';
 import { AppSidebar } from '@/components/layout/AppSidebar';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { isSupabaseConfigured } from '@/lib/store';
+import { createClient } from '@/lib/supabase/server';
 
 export default async function DashboardLayout({
   children,
@@ -8,6 +10,17 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const isLiveSupabase = isSupabaseConfigured();
+
+  if (isLiveSupabase) {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      redirect('/login');
+    }
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">

@@ -1,13 +1,13 @@
 import { TransactionForm } from '@/components/transactions/TransactionForm';
 import { deleteTransactionAction } from '@/actions/transaction.actions';
 import { formatTHB } from '@/lib/utils/timezone';
-import { readLocalDB } from '@/lib/store';
+import { loadAppState } from '@/lib/store';
 import { Trash2 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
 export default async function TransactionsPage() {
-  const db = readLocalDB();
+  const db = await loadAppState();
   const accounts = db.accounts.filter((a) => !a.is_archived);
   const categories = db.categories;
   const transactions = db.transactions.slice(0, 50);

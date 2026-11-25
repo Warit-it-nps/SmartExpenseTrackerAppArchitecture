@@ -75,6 +75,33 @@ export function isSupabaseConfigured(): boolean {
   return Boolean(url && key && !url.includes('your-project-id'));
 }
 
+export async function loadAppState(): Promise<LocalDB> {
+  if (isSupabaseConfigured()) {
+    const { createClient: createSupabaseServerClient } = await import('./supabase/server.ts');
+    const supabase = await createSupabaseServerClient();
+    const [accRes, catRes, txRes, budRes] = await Promise.all([
+      supabase.from('accounts').select('*').eq('is_archived', false).order('created_at'),
+      supabase.from('categories').select('*').order('type').order('name'),
+      supabase
+        .from('transactions')
+        .select('*')
+        .order('transaction_date', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(100),
+      supabase.from('budgets').select('*'),
+    ]);
+
+    return {
+      accounts: (accRes.data as AccountRow[]) ?? [],
+      categories: (catRes.data as CategoryRow[]) ?? [],
+      transactions: (txRes.data as TransactionRow[]) ?? [],
+      budgets: (budRes.data as BudgetRow[]) ?? [],
+      api_keys: [],
+    };
+  }
+  return readLocalDB();
+}
+
 function getInitialSeed(): LocalDB {
   const today = getBangkokDateString();
   const currentMonth = getBangkokMonthYear();

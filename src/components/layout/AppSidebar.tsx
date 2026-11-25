@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { LayoutDashboard, ArrowLeftRight, Wallet, PieChart, Sparkles, KeyRound } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { LayoutDashboard, ArrowLeftRight, Wallet, PieChart, Sparkles, KeyRound, LogOut } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 
 const NAV_ITEMS = [
   { href: '/', label: 'แดชบอร์ด', icon: LayoutDashboard },
@@ -15,6 +16,14 @@ const NAV_ITEMS = [
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const supabase = createClient();
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    router.push('/login');
+    router.refresh();
+  };
 
   return (
     <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 bg-white border-r border-slate-200">
@@ -48,8 +57,17 @@ export function AppSidebar() {
         })}
       </nav>
 
-      <div className="p-4 border-t border-slate-100 text-xs text-slate-400">
-        Timezone: Asia/Bangkok (UTC+7)
+      <div className="p-3 border-t border-slate-100 space-y-2">
+        <button
+          onClick={handleSignOut}
+          className="flex w-full items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-red-50 hover:text-red-600 transition cursor-pointer"
+        >
+          <LogOut className="h-4 w-4" />
+          ออกจากระบบ
+        </button>
+        <div className="px-3 text-[11px] text-slate-400">
+          Timezone: Asia/Bangkok (UTC+7)
+        </div>
       </div>
     </aside>
   );

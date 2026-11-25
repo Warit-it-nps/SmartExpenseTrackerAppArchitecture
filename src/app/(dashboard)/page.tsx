@@ -6,7 +6,7 @@ import {
   getBangkokDateString,
   getBangkokMonthYear,
 } from '@/lib/utils/timezone';
-import { readLocalDB } from '@/lib/store';
+import { loadAppState } from '@/lib/store';
 import { TrendingDown, TrendingUp, Wallet } from 'lucide-react';
 import Link from 'next/link';
 
@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic';
 export default async function DashboardPage() {
   const todayStr = getBangkokDateString();
   const currentMonth = getBangkokMonthYear();
-  const db = readLocalDB();
+  const db = await loadAppState();
 
   const accounts = db.accounts.filter((a) => !a.is_archived);
   const categories = db.categories;
